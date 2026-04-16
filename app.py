@@ -11,7 +11,7 @@ st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts + Database)")
 # -------------------------------
 # INIT DATABASE
 # -------------------------------
-init_db()
+
 
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
