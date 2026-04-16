@@ -21,12 +21,7 @@ def insert_meal(food, calories, protein, fat, carbs, user_id):
         "user_id": str(user_id)   # ✅ force string UUID
     }
     supabase.table("meals").insert(data).execute()
-    try:
-        response = supabase.table("meals").insert(data).execute()
-        print("SUCCESS:", response)
-    except Exception as e:
-        print("ERROR:", e)
-        raise e
+   
 # -------------------------------
 # FETCH MEALS
 # -------------------------------
