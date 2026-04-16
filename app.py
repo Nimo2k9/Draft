@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from database import init_db, insert_meal, get_meals
 from utils import detect_foods, get_nutrition, normalize_food
 
 st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
