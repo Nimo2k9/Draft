@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 
 from utils import detect_foods, get_nutrition, normalize_food
 from supabase_db import insert_meal, get_meals
-from auth import sign_up, sign_in
+from auth import sign_up, sign_in, restore_session
+
+# -------------------------------
+# RESTORE SESSION (IMPORTANT)
+# -------------------------------
+restore_session()
 
 st.title("🍱 AI Food Analyzer V2 (User-Based Tracker)")
 
@@ -21,19 +26,21 @@ if "total" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = None
 
+if "session" not in st.session_state:
+    st.session_state.session = None
+
 
 # -------------------------------
 # 🔐 AUTH SIDEBAR
 # -------------------------------
-st.sidebar.title("🔐 Login")
+st.sidebar.title("🔐 Account")
 
 email = st.sidebar.text_input("Email")
 password = st.sidebar.text_input("Password", type="password")
 
 if st.sidebar.button("Login"):
     try:
-        res = sign_in(email, password)
-        st.session_state.user = res.user
+        sign_in(email, password)
         st.sidebar.success("Logged in!")
     except:
         st.sidebar.error("Login failed")
@@ -45,6 +52,14 @@ if st.sidebar.button("Sign Up"):
     except:
         st.sidebar.error("Signup failed")
 
+# -------------------------------
+# LOGOUT BUTTON
+# -------------------------------
+if st.session_state.get("user"):
+    if st.sidebar.button("Logout"):
+        st.session_state.user = None
+        st.session_state.session = None
+        st.rerun()
 
 # -------------------------------
 # BLOCK IF NOT LOGGED IN
@@ -55,9 +70,8 @@ if not user:
     st.warning("🔒 Please login to use the app")
     st.stop()
 
-# ✅ Get user_id
+# ✅ USER INFO
 user_id = user.id
-
 st.sidebar.success(f"Logged in as: {user.email}")
 
 
@@ -74,14 +88,13 @@ if uploaded_file:
     if st.button("Analyze Food"):
 
         uploaded_file.seek(0)
-
         foods = detect_foods(uploaded_file)
 
         if "error" in foods[0]:
             st.warning("⚠️ Detection failed. Enter manually.")
             foods = st.text_input("Enter foods (comma separated)").split(",")
 
-        foods = foods[:3]  # limit for performance
+        foods = foods[:3]
         foods = [normalize_food(f.strip()) for f in foods]
 
         st.success(f"Detected foods: {', '.join(foods)}")
@@ -105,7 +118,7 @@ if uploaded_file:
 
 
 # -------------------------------
-# DISPLAY RESULTS
+# DISPLAY RESULTS (PERSISTENT)
 # -------------------------------
 if st.session_state.df is not None:
 
@@ -142,12 +155,12 @@ if st.session_state.df is not None:
     if total["Protein"] < 10:
         st.info("💡 Low protein meal")
 
-    # PER FOOD
+    # PER FOOD DISPLAY
     st.subheader("🍽 Per Food Calories")
     for food, cal in zip(df["Food"], df["Calories"]):
         st.write(f"{food} → {int(cal)} kcal")
 
-    # SAVE TO SUPABASE (USER-SPECIFIC)
+    # SAVE TO DATABASE
     if st.button("💾 Save Meal to Database"):
         for _, row in df.iterrows():
             insert_meal(
@@ -156,7 +169,7 @@ if st.session_state.df is not None:
                 row["Protein"],
                 row["Fat"],
                 row["Carbs"],
-                user_id   # ✅ USER LINKED
+                user_id
             )
         st.success("✅ Saved to your account!")
 
