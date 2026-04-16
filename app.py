@@ -8,11 +8,11 @@ from supabase_db import insert_meal, get_meals
 from auth import sign_up, sign_in, restore_session
 
 # -------------------------------
-# RESTORE SESSION (IMPORTANT)
+# RESTORE SESSION
 # -------------------------------
 restore_session()
 
-st.title("🍱 AI Food Analyzer V2 (User-Based Tracker)")
+st.title("🍱 AI Food Analyzer (Cloud + User Tracker)")
 
 # -------------------------------
 # SESSION STATE
@@ -53,7 +53,7 @@ if st.sidebar.button("Sign Up"):
         st.sidebar.error("Signup failed")
 
 # -------------------------------
-# LOGOUT BUTTON
+# LOGOUT
 # -------------------------------
 if st.session_state.get("user"):
     if st.sidebar.button("Logout"):
@@ -70,8 +70,6 @@ if not user:
     st.warning("🔒 Please login to use the app")
     st.stop()
 
-# ✅ USER INFO
-user_id = user.id
 st.sidebar.success(f"Logged in as: {user.email}")
 
 
@@ -118,7 +116,7 @@ if uploaded_file:
 
 
 # -------------------------------
-# DISPLAY RESULTS (PERSISTENT)
+# DISPLAY RESULTS
 # -------------------------------
 if st.session_state.df is not None:
 
@@ -160,7 +158,9 @@ if st.session_state.df is not None:
     for food, cal in zip(df["Food"], df["Calories"]):
         st.write(f"{food} → {int(cal)} kcal")
 
-    # SAVE TO DATABASE
+    # -------------------------------
+    # SAVE TO DATABASE (NO user_id!)
+    # -------------------------------
     if st.button("💾 Save Meal to Database"):
         for _, row in df.iterrows():
             insert_meal(
@@ -168,8 +168,7 @@ if st.session_state.df is not None:
                 row["Calories"],
                 row["Protein"],
                 row["Fat"],
-                row["Carbs"],
-                user_id
+                row["Carbs"]
             )
         st.success("✅ Saved to your account!")
 
@@ -187,12 +186,12 @@ if st.session_state.df is not None:
 
 
 # -------------------------------
-# USER-SPECIFIC HISTORY
+# USER HISTORY (RLS HANDLES FILTER)
 # -------------------------------
 st.divider()
 st.subheader("📚 Your Meal History")
 
-history = get_meals(user_id)
+history = get_meals()
 
 if history:
     df_hist = pd.DataFrame(history)
