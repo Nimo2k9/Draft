@@ -13,12 +13,12 @@ def insert_meal(food, calories, protein, fat, carbs, user_id):
     supabase = get_client()
 
     data = {
-        "food": food,
+        "food": str(food),
         "calories": float(calories),
         "protein": float(protein),
         "fat": float(fat),
         "carbs": float(carbs),
-        "user_id": user_id
+        "user_id": str(user_id)   # ✅ force string UUID
     }
 
     supabase.table("meals").insert(data).execute()
