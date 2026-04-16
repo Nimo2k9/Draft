@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from utils import detect_foods, get_nutrition, normalize_food
-from database import init_db, insert_meal, get_meals
+from supabase_db import insert_meal, get_meals
 
 st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts + Database)")
 
@@ -138,11 +138,13 @@ st.subheader("📚 Saved Meal History")
 
 history = get_meals()
 
-if not history.empty:
-    st.dataframe(history)
+if history:
+    import pandas as pd
+    df_hist = pd.DataFrame(history)
+
+    st.dataframe(df_hist)
 
     st.subheader("📈 Calories Over Time")
-    st.line_chart(history["calories"])
-
+    st.line_chart(df_hist["calories"])
 else:
     st.info("No saved data yet.")
