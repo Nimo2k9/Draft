@@ -2,16 +2,16 @@ import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
-from database import init_db, insert_meal, get_meals
+
 from utils import detect_foods, get_nutrition, normalize_food
+from database import init_db, insert_meal, get_meals
 
-st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts)")
+st.title("🍱 AI Food Analyzer V2 (Multi-Food + Charts + Database)")
 
 # -------------------------------
-# SESSION STATE (LOG)
+# INIT DATABASE
 # -------------------------------
-if "log" not in st.session_state:
-    st.session_state.log = []
+init_db()
 
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
@@ -31,7 +31,7 @@ if uploaded_file:
             st.warning("⚠️ Detection failed. Enter manually.")
             foods = st.text_input("Enter foods (comma separated)").split(",")
 
-        # ⚡ limit for speed
+        # ⚡ limit for performance
         foods = foods[:3]
 
         foods = [normalize_food(f.strip()) for f in foods]
@@ -98,11 +98,18 @@ if uploaded_file:
                 st.write(f"{food} → {int(cal)} kcal")
 
             # -----------------------
-            # ADD TO DAILY LOG
+            # SAVE TO DATABASE
             # -----------------------
-            if st.button("➕ Add Meal to Daily Log"):
-                st.session_state.log.append(total.to_dict())
-                st.success("Added to daily log!")
+            if st.button("💾 Save Meal to Database"):
+                for _, row in df.iterrows():
+                    insert_meal(
+                        row["Food"],
+                        row["Calories"],
+                        row["Protein"],
+                        row["Fat"],
+                        row["Carbs"]
+                    )
+                st.success("✅ Saved to database!")
 
             # -----------------------
             # BAR CHART
@@ -124,18 +131,18 @@ if uploaded_file:
 
 
 # -------------------------------
-# DAILY DASHBOARD
+# DATABASE HISTORY SECTION
 # -------------------------------
-if st.session_state.log:
-    st.subheader("📅 Daily Log Summary")
+st.divider()
+st.subheader("📚 Saved Meal History")
 
-    log_df = pd.DataFrame(st.session_state.log)
-    st.dataframe(log_df)
+history = get_meals()
 
-    total_day = log_df.sum()
+if not history.empty:
+    st.dataframe(history)
 
-    st.write("🔥 Daily Total Calories:", int(total_day["Calories"]))
+    st.subheader("📈 Calories Over Time")
+    st.line_chart(history["calories"])
 
-    # TREND CHART
-    st.subheader("📈 Calorie Trend")
-    st.line_chart(log_df["Calories"])
+else:
+    st.info("No saved data yet.")
