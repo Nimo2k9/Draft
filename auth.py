@@ -4,7 +4,7 @@ import streamlit as st
 def get_client():
     return create_client(
         st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"]
+        st.secrets["SUPABASE_KEY"]   # ⚠️ KEEP anon key
     )
 
 # -------------------------------
@@ -18,30 +18,32 @@ def sign_up(email, password):
     })
 
 # -------------------------------
-# LOGIN
+# LOGIN + STORE SESSION
 # -------------------------------
 def sign_in(email, password):
     supabase = get_client()
+
     res = supabase.auth.sign_in_with_password({
         "email": email,
         "password": password
     })
 
-    # ✅ SAVE SESSION
+    # ✅ store session
     st.session_state.session = res.session
     st.session_state.user = res.user
 
     return res
 
+
 # -------------------------------
-# RESTORE SESSION
+# RESTORE SESSION (IMPORTANT)
 # -------------------------------
 def restore_session():
-    supabase = get_client()
-
     session = st.session_state.get("session")
 
     if session:
+        supabase = get_client()
+
         try:
             supabase.auth.set_session(
                 access_token=session.access_token,
