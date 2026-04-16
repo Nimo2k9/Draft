@@ -19,14 +19,7 @@ def detect_foods(image_file):
         image_bytes = image_file.read()
 
         response = model.generate_content([
-            """Identify all food items in this image accurately.
-
-Rules:
-- Use common food names
-- Be specific (e.g., chicken biryani, fried rice)
-- Return comma-separated list
-- No explanation
-""",
+            """Identify all food items in this image. Return only food names separated by commas. Example: rice, chicken, salad""",
             {
                 "mime_type": image_file.type,
                 "data": image_bytes
