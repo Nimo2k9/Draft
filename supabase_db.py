@@ -25,12 +25,11 @@ def insert_meal(food, calories, protein, fat, carbs):
 # -------------------------------
 # FETCH MEALS
 # -------------------------------
-def get_meals(user_id):
+def get_meals():
     supabase = get_client()
 
     response = supabase.table("meals")\
         .select("*")\
-        .eq("user_id", user_id)\
         .order("created_at", desc=True)\
         .execute()
 
