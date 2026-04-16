@@ -9,7 +9,7 @@ def get_client():
 # -------------------------------
 # INSERT MEAL
 # -------------------------------
-def insert_meal(food, calories, protein, fat, carbs):
+def insert_meal(food, calories, protein, fat, carbs, user_id):
     supabase = get_client()
 
     data = {
@@ -17,17 +17,21 @@ def insert_meal(food, calories, protein, fat, carbs):
         "calories": float(calories),
         "protein": float(protein),
         "fat": float(fat),
-        "carbs": float(carbs)
+        "carbs": float(carbs),
+        "user_id": user_id
     }
 
     supabase.table("meals").insert(data).execute()
-
 # -------------------------------
 # FETCH MEALS
 # -------------------------------
-def get_meals():
+def get_meals(user_id):
     supabase = get_client()
 
-    response = supabase.table("meals").select("*").order("created_at", desc=True).execute()
+    response = supabase.table("meals")\
+        .select("*")\
+        .eq("user_id", user_id)\
+        .order("created_at", desc=True)\
+        .execute()
 
     return response.data
