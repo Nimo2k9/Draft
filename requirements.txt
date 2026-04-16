@@ -4,4 +4,3 @@ pillow
 google-generativeai
 pandas
 matplotlib
-sqlite3
