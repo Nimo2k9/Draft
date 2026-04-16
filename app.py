@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from auth import sign_up, sign_in
 from utils import detect_foods, get_nutrition, normalize_food
 from supabase_db import insert_meal, get_meals
 
