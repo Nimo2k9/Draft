@@ -12,7 +12,7 @@ from auth import sign_up, sign_in, restore_session
 # -------------------------------
 restore_session()
 
-st.title("🍱 AI Food Analyzer (Cloud + User Tracker)")
+st.title("🍱 AI Food Analyzer (SaaS Version)")
 
 # -------------------------------
 # SESSION STATE
@@ -31,7 +31,7 @@ if "session" not in st.session_state:
 
 
 # -------------------------------
-# 🔐 AUTH SIDEBAR
+# AUTH SIDEBAR
 # -------------------------------
 st.sidebar.title("🔐 Account")
 
@@ -52,18 +52,14 @@ if st.sidebar.button("Sign Up"):
     except:
         st.sidebar.error("Signup failed")
 
-# -------------------------------
 # LOGOUT
-# -------------------------------
 if st.session_state.get("user"):
     if st.sidebar.button("Logout"):
         st.session_state.user = None
         st.session_state.session = None
         st.rerun()
 
-# -------------------------------
 # BLOCK IF NOT LOGGED IN
-# -------------------------------
 user = st.session_state.get("user")
 
 if not user:
@@ -74,7 +70,7 @@ st.sidebar.success(f"Logged in as: {user.email}")
 
 
 # -------------------------------
-# FILE UPLOAD
+# IMAGE UPLOAD
 # -------------------------------
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
@@ -110,7 +106,6 @@ if uploaded_file:
             df = pd.DataFrame(all_data)
             total = df[["Calories","Protein","Fat","Carbs"]].sum()
 
-            # SAVE TO SESSION
             st.session_state.df = df
             st.session_state.total = total
 
@@ -139,54 +134,39 @@ if st.session_state.df is not None:
     col3.metric("Fat", int(total["Fat"]))
     col4.metric("Carbs", int(total["Carbs"]))
 
-    # CALORIE GOAL
-    goal = st.number_input("🎯 Daily Calorie Goal", value=2000)
+    # CATEGORY SELECT
+    category = st.selectbox(
+        "🍽 Select Meal Type",
+        ["Breakfast", "Lunch", "Dinner"]
+    )
 
-    progress = total["Calories"] / goal if goal else 0
-    st.progress(min(progress, 1.0))
-    st.write(f"{int(total['Calories'])} / {goal} kcal ({int(progress*100)}%)")
-
-    # WARNINGS
-    if total["Calories"] > 800:
-        st.warning("⚠️ High calorie meal!")
-
-    if total["Protein"] < 10:
-        st.info("💡 Low protein meal")
-
-    # PER FOOD DISPLAY
-    st.subheader("🍽 Per Food Calories")
-    for food, cal in zip(df["Food"], df["Calories"]):
-        st.write(f"{food} → {int(cal)} kcal")
-
-    # -------------------------------
-    # SAVE TO DATABASE (NO user_id!)
-    # -------------------------------
-    if st.button("💾 Save Meal to Database"):
+    # SAVE
+    if st.button("💾 Save Meal"):
         for _, row in df.iterrows():
             insert_meal(
                 row["Food"],
                 row["Calories"],
                 row["Protein"],
                 row["Fat"],
-                row["Carbs"]
+                row["Carbs"],
+                category
             )
         st.success("✅ Saved to your account!")
 
-    # BAR CHART
-    st.subheader("📊 Macronutrients Bar Chart")
+    # CHARTS
+    st.subheader("📊 Macronutrients")
     fig, ax = plt.subplots()
     ax.bar(total.index, total.values)
     st.pyplot(fig)
 
-    # PIE CHART
-    st.subheader("🥧 Macronutrients Distribution")
+    st.subheader("🥧 Distribution")
     fig2, ax2 = plt.subplots()
     ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
     st.pyplot(fig2)
 
 
 # -------------------------------
-# USER HISTORY (RLS HANDLES FILTER)
+# HISTORY (CRUD)
 # -------------------------------
 st.divider()
 st.subheader("📚 Your Meal History")
@@ -198,39 +178,24 @@ if history:
 
     for _, row in df_hist.iterrows():
 
-        with st.container():
-            col1, col2, col3 = st.columns([3, 1, 1])
+        col1, col2, col3 = st.columns([3,1,1])
 
-            # -----------------------
-            # DISPLAY
-            # -----------------------
-            with col1:
-                st.write(f"🍽 {row['food']}")
-                st.write(f"🔥 {int(row['calories'])} kcal | "
-                         f"P: {row['protein']} | "
-                         f"F: {row['fat']} | "
-                         f"C: {row['carbs']}")
+        with col1:
+            st.write(f"🍽 {row['food']} ({row.get('category','-')})")
+            st.write(f"🔥 {int(row['calories'])} kcal | "
+                     f"P:{row['protein']} F:{row['fat']} C:{row['carbs']}")
 
-            # -----------------------
-            # DELETE BUTTON
-            # -----------------------
-            with col2:
-                if st.button("🗑️ Delete", key=f"del_{row['id']}"):
-                    delete_meal(row["id"])
-                    st.success("Deleted!")
-                    st.rerun()
+        with col2:
+            if st.button("🗑️", key=f"del_{row['id']}"):
+                delete_meal(row["id"])
+                st.rerun()
 
-            # -----------------------
-            # EDIT BUTTON
-            # -----------------------
-            with col3:
-                if st.button("✏️ Edit", key=f"edit_{row['id']}"):
-                    st.session_state.edit_id = row["id"]
-                    st.session_state.edit_data = row
+        with col3:
+            if st.button("✏️", key=f"edit_{row['id']}"):
+                st.session_state.edit_id = row["id"]
+                st.session_state.edit_data = row
 
-    # -------------------------------
     # EDIT FORM
-    # -------------------------------
     if "edit_id" in st.session_state:
 
         st.subheader("✏️ Edit Meal")
@@ -242,18 +207,25 @@ if history:
         fat = st.number_input("Fat", value=float(edit["fat"]))
         carbs = st.number_input("Carbs", value=float(edit["carbs"]))
 
-        if st.button("💾 Update Meal"):
+        category = st.selectbox(
+            "Meal Type",
+            ["Breakfast","Lunch","Dinner"],
+            index=["Breakfast","Lunch","Dinner"].index(edit.get("category","Breakfast"))
+        )
+
+        if st.button("💾 Update"):
             update_meal(
                 st.session_state.edit_id,
                 calories,
                 protein,
                 fat,
-                carbs
+                carbs,
+                category
             )
 
-            st.success("Updated!")
             del st.session_state.edit_id
             del st.session_state.edit_data
+            st.success("Updated!")
             st.rerun()
 
 else:
