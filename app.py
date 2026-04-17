@@ -12,50 +12,26 @@ from auth import sign_up, sign_in, restore_session
 # -------------------------------
 restore_session()
 
-# -------------------------------
-# CUSTOM CSS
-# -------------------------------
-st.markdown("""
-<style>
-.main { background-color: #f8fafc; }
-
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
-}
-
-.metric-card {
-    text-align: center;
-    padding: 12px;
-    border-radius: 10px;
-    background: #ffffff;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.05);
-}
-
-.title { font-size: 20px; font-weight: bold; }
-.subtitle { color: gray; font-size: 13px; }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🍱 AI Food Analyzer (Premium Dashboard)")
+st.title("🍱 AI Food Analyzer (Cloud + User Tracker)")
 
 # -------------------------------
 # SESSION STATE
 # -------------------------------
 if "df" not in st.session_state:
     st.session_state.df = None
+
 if "total" not in st.session_state:
     st.session_state.total = None
+
 if "user" not in st.session_state:
     st.session_state.user = None
+
 if "session" not in st.session_state:
     st.session_state.session = None
 
+
 # -------------------------------
-# AUTH
+# 🔐 AUTH SIDEBAR
 # -------------------------------
 st.sidebar.title("🔐 Account")
 
@@ -72,59 +48,33 @@ if st.sidebar.button("Login"):
 if st.sidebar.button("Sign Up"):
     try:
         sign_up(email, password)
-        st.sidebar.success("Account created!")
+        st.sidebar.success("Account created! Now login.")
     except:
         st.sidebar.error("Signup failed")
 
+# -------------------------------
+# LOGOUT
+# -------------------------------
 if st.session_state.get("user"):
     if st.sidebar.button("Logout"):
         st.session_state.user = None
         st.session_state.session = None
         st.rerun()
 
+# -------------------------------
+# BLOCK IF NOT LOGGED IN
+# -------------------------------
 user = st.session_state.get("user")
 
 if not user:
-    st.warning("🔒 Please login to continue")
+    st.warning("🔒 Please login to use the app")
     st.stop()
 
 st.sidebar.success(f"Logged in as: {user.email}")
 
-# -------------------------------
-# SIDEBAR ANALYTICS
-# -------------------------------
-st.sidebar.markdown("## 📊 Dashboard")
-
-history = get_meals()
-
-if history:
-    df_hist = pd.DataFrame(history)
-
-    total_cal = int(df_hist["calories"].sum())
-    meal_count = len(df_hist)
-
-    st.sidebar.metric("🔥 Total Calories", total_cal)
-    st.sidebar.metric("🍽 Meals Logged", meal_count)
-
-    if "category" in df_hist.columns:
-        st.sidebar.markdown("### 🍽 By Category")
-        cat_sum = df_hist.groupby("category")["calories"].sum()
-
-        for cat, val in cat_sum.items():
-            st.sidebar.write(f"{cat}: {int(val)} kcal")
-
-    if "created_at" in df_hist.columns:
-        df_hist["date"] = pd.to_datetime(df_hist["created_at"]).dt.date
-        daily = df_hist.groupby("date")["calories"].sum()
-
-        st.sidebar.markdown("### 📈 Trend")
-        st.sidebar.line_chart(daily)
-
-else:
-    st.sidebar.info("No data yet")
 
 # -------------------------------
-# IMAGE UPLOAD
+# FILE UPLOAD
 # -------------------------------
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
 
@@ -139,15 +89,19 @@ if uploaded_file:
         foods = detect_foods(uploaded_file)
 
         if "error" in foods[0]:
-            foods = st.text_input("Enter foods").split(",")
+            st.warning("⚠️ Detection failed. Enter manually.")
+            foods = st.text_input("Enter foods (comma separated)").split(",")
 
         foods = foods[:3]
         foods = [normalize_food(f.strip()) for f in foods]
+
+        st.success(f"Detected foods: {', '.join(foods)}")
 
         all_data = []
 
         for food in foods:
             nutrition = get_nutrition(food)
+
             if nutrition:
                 nutrition["Food"] = food
                 all_data.append(nutrition)
@@ -156,8 +110,10 @@ if uploaded_file:
             df = pd.DataFrame(all_data)
             total = df[["Calories","Protein","Fat","Carbs"]].sum()
 
+            # SAVE TO SESSION
             st.session_state.df = df
             st.session_state.total = total
+
 
 # -------------------------------
 # DISPLAY RESULTS
@@ -167,64 +123,117 @@ if st.session_state.df is not None:
     df = st.session_state.df
     total = st.session_state.total
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Nutrition Table")
+    st.dataframe(df)
 
+    # DOWNLOAD
+    csv = df.to_csv(index=False)
+    st.download_button("📥 Download Nutrition Report", csv, "nutrition.csv")
+
+    # TOTALS
+    st.subheader("🔥 Total Nutrition")
     col1, col2, col3, col4 = st.columns(4)
-    col1.markdown(f'<div class="metric-card">🔥<br>{int(total["Calories"])}<br>Calories</div>', unsafe_allow_html=True)
-    col2.markdown(f'<div class="metric-card">💪<br>{int(total["Protein"])}<br>Protein</div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="metric-card">🧈<br>{int(total["Fat"])}<br>Fat</div>', unsafe_allow_html=True)
-    col4.markdown(f'<div class="metric-card">🍞<br>{int(total["Carbs"])}<br>Carbs</div>', unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    col1.metric("Calories", int(total["Calories"]))
+    col2.metric("Protein", int(total["Protein"]))
+    col3.metric("Fat", int(total["Fat"]))
+    col4.metric("Carbs", int(total["Carbs"]))
 
-    category = st.selectbox("Meal Type", ["Breakfast","Lunch","Dinner"])
+    # CALORIE GOAL
+    goal = st.number_input("🎯 Daily Calorie Goal", value=2000)
 
-    if st.button("💾 Save Meal"):
+    progress = total["Calories"] / goal if goal else 0
+    st.progress(min(progress, 1.0))
+    st.write(f"{int(total['Calories'])} / {goal} kcal ({int(progress*100)}%)")
+
+    # WARNINGS
+    if total["Calories"] > 800:
+        st.warning("⚠️ High calorie meal!")
+
+    if total["Protein"] < 10:
+        st.info("💡 Low protein meal")
+
+    # PER FOOD DISPLAY
+    st.subheader("🍽 Per Food Calories")
+    for food, cal in zip(df["Food"], df["Calories"]):
+        st.write(f"{food} → {int(cal)} kcal")
+
+    # -------------------------------
+    # SAVE TO DATABASE (NO user_id!)
+    # -------------------------------
+    if st.button("💾 Save Meal to Database"):
         for _, row in df.iterrows():
             insert_meal(
                 row["Food"],
                 row["Calories"],
                 row["Protein"],
                 row["Fat"],
-                row["Carbs"],
-                category
+                row["Carbs"]
             )
-        st.success("Saved!")
+        st.success("✅ Saved to your account!")
+
+    # BAR CHART
+    st.subheader("📊 Macronutrients Bar Chart")
+    fig, ax = plt.subplots()
+    ax.bar(total.index, total.values)
+    st.pyplot(fig)
+
+    # PIE CHART
+    st.subheader("🥧 Macronutrients Distribution")
+    fig2, ax2 = plt.subplots()
+    ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
+    st.pyplot(fig2)
+
 
 # -------------------------------
-# HISTORY (CRUD)
+# USER HISTORY (RLS HANDLES FILTER)
 # -------------------------------
 st.divider()
-st.subheader("📚 Your Meals")
+st.subheader("📚 Your Meal History")
+
+history = get_meals()
 
 if history:
+    df_hist = pd.DataFrame(history)
+
     for _, row in df_hist.iterrows():
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        with st.container():
+            col1, col2, col3 = st.columns([3, 1, 1])
 
-        col1, col2, col3 = st.columns([4,1,1])
+            # -----------------------
+            # DISPLAY
+            # -----------------------
+            with col1:
+                st.write(f"🍽 {row['food']}")
+                st.write(f"🔥 {int(row['calories'])} kcal | "
+                         f"P: {row['protein']} | "
+                         f"F: {row['fat']} | "
+                         f"C: {row['carbs']}")
 
-        with col1:
-            st.markdown(f"""
-            <div class="title">{row['food']}</div>
-            <div class="subtitle">{row.get('category','')}</div>
-            🔥 {int(row['calories'])} kcal
-            """, unsafe_allow_html=True)
+            # -----------------------
+            # DELETE BUTTON
+            # -----------------------
+            with col2:
+                if st.button("🗑️ Delete", key=f"del_{row['id']}"):
+                    delete_meal(row["id"])
+                    st.success("Deleted!")
+                    st.rerun()
 
-        with col2:
-            if st.button("🗑️", key=f"d{row['id']}"):
-                delete_meal(row["id"])
-                st.rerun()
+            # -----------------------
+            # EDIT BUTTON
+            # -----------------------
+            with col3:
+                if st.button("✏️ Edit", key=f"edit_{row['id']}"):
+                    st.session_state.edit_id = row["id"]
+                    st.session_state.edit_data = row
 
-        with col3:
-            if st.button("✏️", key=f"e{row['id']}"):
-                st.session_state.edit_id = row["id"]
-                st.session_state.edit_data = row
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
+    # -------------------------------
+    # EDIT FORM
+    # -------------------------------
     if "edit_id" in st.session_state:
-        st.subheader("Edit Meal")
+
+        st.subheader("✏️ Edit Meal")
 
         edit = st.session_state.edit_data
 
@@ -233,23 +242,19 @@ if history:
         fat = st.number_input("Fat", value=float(edit["fat"]))
         carbs = st.number_input("Carbs", value=float(edit["carbs"]))
 
-        category = st.selectbox(
-            "Category",
-            ["Breakfast","Lunch","Dinner"],
-            index=["Breakfast","Lunch","Dinner"].index(edit.get("category","Breakfast"))
-        )
-
-        if st.button("Update"):
+        if st.button("💾 Update Meal"):
             update_meal(
                 st.session_state.edit_id,
                 calories,
                 protein,
                 fat,
-                carbs,
-                category
+                carbs
             )
+
+            st.success("Updated!")
             del st.session_state.edit_id
+            del st.session_state.edit_data
             st.rerun()
 
 else:
-    st.info("No meals yet.")
+    st.info("No meals saved yet.")
