@@ -9,7 +9,7 @@ def get_client():
 # -------------------------------
 # INSERT MEAL
 # -------------------------------
-def insert_meal(food, calories, protein, fat, carbs):
+def insert_meal(food, calories, protein, fat, carbs, category):
     supabase = get_client()
 
     data = {
@@ -17,8 +17,8 @@ def insert_meal(food, calories, protein, fat, carbs):
         "calories": float(calories),
         "protein": float(protein),
         "fat": float(fat),
-        "carbs": float(carbs)
-        # ❌ REMOVE user_id completely
+        "carbs": float(carbs),
+        "category": category
     }
 
     return supabase.table("meals").insert(data).execute()
