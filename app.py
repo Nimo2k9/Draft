@@ -13,14 +13,14 @@ from auth import sign_up, sign_in, restore_session
 restore_session()
 
 # -------------------------------
-# CUSTOM CSS (PREMIUM UI)
+# CUSTOM CSS
 # -------------------------------
 st.markdown("""
 <style>
 .main { background-color: #f8fafc; }
 
 .card {
-    background-color: white;
+    background: white;
     padding: 20px;
     border-radius: 15px;
     box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
@@ -29,43 +29,33 @@ st.markdown("""
 
 .metric-card {
     text-align: center;
-    padding: 15px;
+    padding: 12px;
     border-radius: 10px;
     background: #ffffff;
     box-shadow: 0px 2px 6px rgba(0,0,0,0.05);
 }
 
-.title {
-    font-size: 22px;
-    font-weight: bold;
-}
-
-.subtitle {
-    color: gray;
-    font-size: 14px;
-}
+.title { font-size: 20px; font-weight: bold; }
+.subtitle { color: gray; font-size: 13px; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🍱 AI Food Analyzer (Premium SaaS)")
+st.title("🍱 AI Food Analyzer (Premium Dashboard)")
 
 # -------------------------------
 # SESSION STATE
 # -------------------------------
 if "df" not in st.session_state:
     st.session_state.df = None
-
 if "total" not in st.session_state:
     st.session_state.total = None
-
 if "user" not in st.session_state:
     st.session_state.user = None
-
 if "session" not in st.session_state:
     st.session_state.session = None
 
 # -------------------------------
-# AUTH SIDEBAR
+# AUTH
 # -------------------------------
 st.sidebar.title("🔐 Account")
 
@@ -101,6 +91,39 @@ if not user:
 st.sidebar.success(f"Logged in as: {user.email}")
 
 # -------------------------------
+# SIDEBAR ANALYTICS
+# -------------------------------
+st.sidebar.markdown("## 📊 Dashboard")
+
+history = get_meals()
+
+if history:
+    df_hist = pd.DataFrame(history)
+
+    total_cal = int(df_hist["calories"].sum())
+    meal_count = len(df_hist)
+
+    st.sidebar.metric("🔥 Total Calories", total_cal)
+    st.sidebar.metric("🍽 Meals Logged", meal_count)
+
+    if "category" in df_hist.columns:
+        st.sidebar.markdown("### 🍽 By Category")
+        cat_sum = df_hist.groupby("category")["calories"].sum()
+
+        for cat, val in cat_sum.items():
+            st.sidebar.write(f"{cat}: {int(val)} kcal")
+
+    if "created_at" in df_hist.columns:
+        df_hist["date"] = pd.to_datetime(df_hist["created_at"]).dt.date
+        daily = df_hist.groupby("date")["calories"].sum()
+
+        st.sidebar.markdown("### 📈 Trend")
+        st.sidebar.line_chart(daily)
+
+else:
+    st.sidebar.info("No data yet")
+
+# -------------------------------
 # IMAGE UPLOAD
 # -------------------------------
 uploaded_file = st.file_uploader("Upload Food Image", type=["jpg","png","jpeg"])
@@ -111,6 +134,7 @@ if uploaded_file:
     st.image(image)
 
     if st.button("Analyze Food"):
+
         uploaded_file.seek(0)
         foods = detect_foods(uploaded_file)
 
@@ -143,23 +167,16 @@ if st.session_state.df is not None:
     df = st.session_state.df
     total = st.session_state.total
 
-    # -------------------------------
-    # SUMMARY CARD
-    # -------------------------------
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
-
-    col1.markdown(f'<div class="metric-card">🔥<br><b>{int(total["Calories"])}</b><br>Calories</div>', unsafe_allow_html=True)
-    col2.markdown(f'<div class="metric-card">💪<br><b>{int(total["Protein"])}</b><br>Protein</div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="metric-card">🧈<br><b>{int(total["Fat"])}</b><br>Fat</div>', unsafe_allow_html=True)
-    col4.markdown(f'<div class="metric-card">🍞<br><b>{int(total["Carbs"])}</b><br>Carbs</div>', unsafe_allow_html=True)
+    col1.markdown(f'<div class="metric-card">🔥<br>{int(total["Calories"])}<br>Calories</div>', unsafe_allow_html=True)
+    col2.markdown(f'<div class="metric-card">💪<br>{int(total["Protein"])}<br>Protein</div>', unsafe_allow_html=True)
+    col3.markdown(f'<div class="metric-card">🧈<br>{int(total["Fat"])}<br>Fat</div>', unsafe_allow_html=True)
+    col4.markdown(f'<div class="metric-card">🍞<br>{int(total["Carbs"])}<br>Carbs</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # -------------------------------
-    # CATEGORY + SAVE
-    # -------------------------------
     category = st.selectbox("Meal Type", ["Breakfast","Lunch","Dinner"])
 
     if st.button("💾 Save Meal"):
@@ -174,51 +191,13 @@ if st.session_state.df is not None:
             )
         st.success("Saved!")
 
-    # -------------------------------
-    # FOOD BREAKDOWN
-    # -------------------------------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    for food, cal in zip(df["Food"], df["Calories"]):
-        st.markdown(f"""
-        <div class="metric-card">
-            🍽 <b>{food}</b><br>
-            🔥 {int(cal)} kcal
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # -------------------------------
-    # CHARTS
-    # -------------------------------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig, ax = plt.subplots()
-        ax.bar(total.index, total.values)
-        st.pyplot(fig)
-
-    with col2:
-        fig2, ax2 = plt.subplots()
-        ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
-        st.pyplot(fig2)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
 # -------------------------------
-# HISTORY
+# HISTORY (CRUD)
 # -------------------------------
 st.divider()
 st.subheader("📚 Your Meals")
 
-history = get_meals()
-
 if history:
-    df_hist = pd.DataFrame(history)
-
     for _, row in df_hist.iterrows():
 
         st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -244,7 +223,6 @@ if history:
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # EDIT FORM
     if "edit_id" in st.session_state:
         st.subheader("Edit Meal")
 
