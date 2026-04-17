@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from utils import detect_foods, get_nutrition, normalize_food
-from supabase_db import insert_meal, get_meals
+from supabase_db import insert_meal, get_meals, delete_meal, update_meal
 from auth import sign_up, sign_in, restore_session
 
 # -------------------------------
@@ -195,10 +195,66 @@ history = get_meals()
 
 if history:
     df_hist = pd.DataFrame(history)
-    st.dataframe(df_hist)
 
-    st.subheader("📈 Calories Over Time")
-    st.line_chart(df_hist["calories"])
+    for _, row in df_hist.iterrows():
+
+        with st.container():
+            col1, col2, col3 = st.columns([3, 1, 1])
+
+            # -----------------------
+            # DISPLAY
+            # -----------------------
+            with col1:
+                st.write(f"🍽 {row['food']}")
+                st.write(f"🔥 {int(row['calories'])} kcal | "
+                         f"P: {row['protein']} | "
+                         f"F: {row['fat']} | "
+                         f"C: {row['carbs']}")
+
+            # -----------------------
+            # DELETE BUTTON
+            # -----------------------
+            with col2:
+                if st.button("🗑️ Delete", key=f"del_{row['id']}"):
+                    delete_meal(row["id"])
+                    st.success("Deleted!")
+                    st.rerun()
+
+            # -----------------------
+            # EDIT BUTTON
+            # -----------------------
+            with col3:
+                if st.button("✏️ Edit", key=f"edit_{row['id']}"):
+                    st.session_state.edit_id = row["id"]
+                    st.session_state.edit_data = row
+
+    # -------------------------------
+    # EDIT FORM
+    # -------------------------------
+    if "edit_id" in st.session_state:
+
+        st.subheader("✏️ Edit Meal")
+
+        edit = st.session_state.edit_data
+
+        calories = st.number_input("Calories", value=float(edit["calories"]))
+        protein = st.number_input("Protein", value=float(edit["protein"]))
+        fat = st.number_input("Fat", value=float(edit["fat"]))
+        carbs = st.number_input("Carbs", value=float(edit["carbs"]))
+
+        if st.button("💾 Update Meal"):
+            update_meal(
+                st.session_state.edit_id,
+                calories,
+                protein,
+                fat,
+                carbs
+            )
+
+            st.success("Updated!")
+            del st.session_state.edit_id
+            del st.session_state.edit_data
+            st.rerun()
 
 else:
     st.info("No meals saved yet.")
