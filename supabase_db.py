@@ -34,3 +34,30 @@ def get_meals():
         .execute()
 
     return response.data
+# -------------------------------
+# DELETE MEAL
+# -------------------------------
+def delete_meal(meal_id):
+    supabase = get_client()
+
+    return supabase.table("meals")\
+        .delete()\
+        .eq("id", meal_id)\
+        .execute()
+# -------------------------------
+# UPDATE MEAL
+# -------------------------------
+def update_meal(meal_id, calories, protein, fat, carbs):
+    supabase = get_client()
+
+    data = {
+        "calories": float(calories),
+        "protein": float(protein),
+        "fat": float(fat),
+        "carbs": float(carbs)
+    }
+
+    return supabase.table("meals")\
+        .update(data)\
+        .eq("id", meal_id)\
+        .execute()
