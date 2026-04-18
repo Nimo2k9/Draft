@@ -178,7 +178,7 @@ if st.session_state.df is not None:
 
     category = st.selectbox(
         "🍽 Select Meal Type",
-        ["Breakfast", "Lunch", "Dinner"]
+        ["Breakfast", "Lunch", "Snacks", "Dinner"]
     )
 
     if st.button("💾 Save Meal"):
