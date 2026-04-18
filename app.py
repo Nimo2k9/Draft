@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from utils import detect_foods, get_nutrition, normalize_food
 from supabase_db import insert_meal, get_meals, delete_meal, update_meal
@@ -95,7 +96,6 @@ if uploaded_file:
 if st.session_state.foods:
 
     foods = st.session_state.foods
-
     per100_data = []
 
     for food in foods:
@@ -205,7 +205,7 @@ if st.session_state.df is not None:
     st.pyplot(fig2)
 
 # -------------------------------
-# HISTORY (UPDATED)
+# HISTORY (FINAL UPDATED)
 # -------------------------------
 st.divider()
 st.subheader("📚 Your Meal History")
@@ -234,10 +234,18 @@ if history:
 
     for _, row in df_recent.iterrows():
 
+        # FORMAT DATE (FIXED)
+        created_at = row.get("created_at")
+        try:
+            formatted_date = datetime.fromisoformat(str(created_at)).strftime("%d %b %Y, %I:%M %p")
+        except:
+            formatted_date = "N/A"
+
         col1, col2, col3 = st.columns([3,1,1])
 
         with col1:
             st.write(f"🍽 {row['food']} ({row.get('category','-')})")
+            st.write(f"🕒 {formatted_date}")
             st.write(f"🔥 {int(row['calories'])} kcal | "
                      f"P:{row['protein']} F:{row['fat']} C:{row['carbs']}")
 
