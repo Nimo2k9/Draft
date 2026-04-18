@@ -1,20 +1,26 @@
 from supabase import create_client
 import streamlit as st
 
+# -------------------------------
+# CREATE CLIENT (WITH AUTH FIX)
+# -------------------------------
 def get_client():
     supabase = create_client(
         st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"]
+        st.secrets["SUPABASE_KEY"]  # ⚠️ Use ANON KEY
     )
 
-    # 🔥 ATTACH USER SESSION TOKEN
+    # 🔥 CRITICAL FIX: attach user session
     session = st.session_state.get("session")
 
     if session:
-        supabase.postgrest.auth(session.access_token)
+        try:
+            supabase.postgrest.auth(session.access_token)
+        except Exception as e:
+            print("Auth attach error:", e)
 
     return supabase
-    
+
 
 # -------------------------------
 # INSERT MEAL
@@ -29,45 +35,72 @@ def insert_meal(food, calories, protein, fat, carbs, category):
         "fat": float(fat),
         "carbs": float(carbs),
         "category": category
+        # ❌ DO NOT send user_id (Supabase sets it)
     }
 
-    return supabase.table("meals").insert(data).execute()
+    try:
+        return supabase.table("meals").insert(data).execute()
+    except Exception as e:
+        print("INSERT ERROR:", e)
+        raise e
+
+
 # -------------------------------
-# FETCH MEALS
+# GET MEALS (RLS FILTERED)
 # -------------------------------
 def get_meals():
     supabase = get_client()
 
-    response = supabase.table("meals")\
-        .select("*")\
-        .order("created_at", desc=True)\
-        .execute()
+    try:
+        response = supabase.table("meals")\
+            .select("*")\
+            .order("created_at", desc=True)\
+            .execute()
 
-    return response.data
+        return response.data
+
+    except Exception as e:
+        print("FETCH ERROR:", e)
+        return []
+
+
 # -------------------------------
 # DELETE MEAL
 # -------------------------------
 def delete_meal(meal_id):
     supabase = get_client()
 
-    return supabase.table("meals")\
-        .delete()\
-        .eq("id", meal_id)\
-        .execute()
+    try:
+        return supabase.table("meals")\
+            .delete()\
+            .eq("id", meal_id)\
+            .execute()
+
+    except Exception as e:
+        print("DELETE ERROR:", e)
+        raise e
+
+
 # -------------------------------
 # UPDATE MEAL
 # -------------------------------
-def update_meal(meal_id, calories, protein, fat, carbs):
+def update_meal(meal_id, calories, protein, fat, carbs, category):
     supabase = get_client()
 
     data = {
         "calories": float(calories),
         "protein": float(protein),
         "fat": float(fat),
-        "carbs": float(carbs)
+        "carbs": float(carbs),
+        "category": category
     }
 
-    return supabase.table("meals")\
-        .update(data)\
-        .eq("id", meal_id)\
-        .execute()
+    try:
+        return supabase.table("meals")\
+            .update(data)\
+            .eq("id", meal_id)\
+            .execute()
+
+    except Exception as e:
+        print("UPDATE ERROR:", e)
+        raise e
