@@ -55,3 +55,5 @@ def restore_session():
 
         except:
             st.session_state.user = None
+st.session_state.session = res.session
+st.session_state.user = res.user
