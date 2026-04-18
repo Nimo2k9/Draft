@@ -74,7 +74,6 @@ if uploaded_file:
     image = image.resize((512, 512))
     st.image(image)
 
-    # STEP 1: DETECT FOOD
     if st.button("Analyze Food"):
 
         uploaded_file.seek(0)
@@ -91,7 +90,7 @@ if uploaded_file:
         st.success(f"Detected foods: {', '.join(foods)}")
 
 # -------------------------------
-# STEP 2: SHOW PER 100g + INPUT
+# PORTION-BASED NUTRITION
 # -------------------------------
 if st.session_state.foods:
 
@@ -111,10 +110,10 @@ if st.session_state.foods:
         st.subheader("📊 Nutrition (per 100g)")
         st.dataframe(df_100)
 
-        # PORTION INPUT
+        # Portion input
         st.subheader("⚖️ Enter Portion Size (grams)")
-
         portions = {}
+
         for food in foods:
             portions[food] = st.number_input(
                 f"{food} (grams)",
@@ -124,7 +123,6 @@ if st.session_state.foods:
                 key=f"portion_{food}"
             )
 
-        # STEP 3: CALCULATE FINAL
         if st.button("Calculate Nutrition"):
 
             final_data = []
@@ -167,11 +165,9 @@ if st.session_state.df is not None:
     st.subheader("📊 Final Nutrition Table")
     st.dataframe(df)
 
-    # DOWNLOAD
     csv = df.to_csv(index=False)
     st.download_button("📥 Download Nutrition Report", csv, "nutrition.csv")
 
-    # TOTALS
     st.subheader("🔥 Total Nutrition")
     col1, col2, col3, col4 = st.columns(4)
 
@@ -180,13 +176,11 @@ if st.session_state.df is not None:
     col3.metric("Fat", int(total["Fat"]))
     col4.metric("Carbs", int(total["Carbs"]))
 
-    # CATEGORY SELECT
     category = st.selectbox(
         "🍽 Select Meal Type",
         ["Breakfast", "Lunch", "Dinner"]
     )
 
-    # SAVE (NOW ACCURATE)
     if st.button("💾 Save Meal"):
         for _, row in df.iterrows():
             insert_meal(
@@ -199,7 +193,7 @@ if st.session_state.df is not None:
             )
         st.success("✅ Saved to your account!")
 
-    # CHARTS
+    # Charts
     st.subheader("📊 Macronutrients")
     fig, ax = plt.subplots()
     ax.bar(total.index, total.values)
@@ -211,7 +205,7 @@ if st.session_state.df is not None:
     st.pyplot(fig2)
 
 # -------------------------------
-# HISTORY (CRUD)
+# HISTORY (UPDATED)
 # -------------------------------
 st.divider()
 st.subheader("📚 Your Meal History")
@@ -221,7 +215,24 @@ history = get_meals()
 if history:
     df_hist = pd.DataFrame(history)
 
-    for _, row in df_hist.iterrows():
+    # Sort latest first
+    if "created_at" in df_hist.columns:
+        df_hist = df_hist.sort_values(by="created_at", ascending=False)
+
+    # Download full history
+    st.subheader("📥 Download Full History")
+    csv_full = df_hist.to_csv(index=False)
+    st.download_button(
+        "Download All Meals (CSV)",
+        csv_full,
+        "meal_history_full.csv"
+    )
+
+    # Show last 5
+    st.subheader("📚 Recent Meals (Last 5)")
+    df_recent = df_hist.head(5)
+
+    for _, row in df_recent.iterrows():
 
         col1, col2, col3 = st.columns([3,1,1])
 
