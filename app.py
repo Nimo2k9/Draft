@@ -23,12 +23,8 @@ if "df" not in st.session_state:
 if "total" not in st.session_state:
     st.session_state.total = None
 
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-if "session" not in st.session_state:
-    st.session_state.session = None
-
+if "foods" not in st.session_state:
+    st.session_state.foods = None
 
 # -------------------------------
 # AUTH SIDEBAR
@@ -68,7 +64,6 @@ if not user:
 
 st.sidebar.success(f"Logged in as: {user.email}")
 
-
 # -------------------------------
 # IMAGE UPLOAD
 # -------------------------------
@@ -79,6 +74,7 @@ if uploaded_file:
     image = image.resize((512, 512))
     st.image(image)
 
+    # STEP 1: DETECT FOOD
     if st.button("Analyze Food"):
 
         uploaded_file.seek(0)
@@ -91,24 +87,74 @@ if uploaded_file:
         foods = foods[:3]
         foods = [normalize_food(f.strip()) for f in foods]
 
+        st.session_state.foods = foods
         st.success(f"Detected foods: {', '.join(foods)}")
 
-        all_data = []
+# -------------------------------
+# STEP 2: SHOW PER 100g + INPUT
+# -------------------------------
+if st.session_state.foods:
 
+    foods = st.session_state.foods
+
+    per100_data = []
+
+    for food in foods:
+        nutrition = get_nutrition(food)
+        if nutrition:
+            nutrition["Food"] = food
+            per100_data.append(nutrition)
+
+    if per100_data:
+        df_100 = pd.DataFrame(per100_data)
+
+        st.subheader("📊 Nutrition (per 100g)")
+        st.dataframe(df_100)
+
+        # PORTION INPUT
+        st.subheader("⚖️ Enter Portion Size (grams)")
+
+        portions = {}
         for food in foods:
-            nutrition = get_nutrition(food)
+            portions[food] = st.number_input(
+                f"{food} (grams)",
+                min_value=0,
+                value=100,
+                step=10,
+                key=f"portion_{food}"
+            )
 
-            if nutrition:
-                nutrition["Food"] = food
-                all_data.append(nutrition)
+        # STEP 3: CALCULATE FINAL
+        if st.button("Calculate Nutrition"):
 
-        if all_data:
-            df = pd.DataFrame(all_data)
-            total = df[["Calories","Protein","Fat","Carbs"]].sum()
+            final_data = []
+            total_values = {"Calories":0, "Protein":0, "Fat":0, "Carbs":0}
 
-            st.session_state.df = df
-            st.session_state.total = total
+            for _, row in df_100.iterrows():
+                food = row["Food"]
+                factor = portions[food] / 100
 
+                calories = row["Calories"] * factor
+                protein = row["Protein"] * factor
+                fat = row["Fat"] * factor
+                carbs = row["Carbs"] * factor
+
+                total_values["Calories"] += calories
+                total_values["Protein"] += protein
+                total_values["Fat"] += fat
+                total_values["Carbs"] += carbs
+
+                final_data.append({
+                    "Food": food,
+                    "Portion (g)": portions[food],
+                    "Calories": round(calories,2),
+                    "Protein": round(protein,2),
+                    "Fat": round(fat,2),
+                    "Carbs": round(carbs,2)
+                })
+
+            st.session_state.df = pd.DataFrame(final_data)
+            st.session_state.total = pd.Series(total_values)
 
 # -------------------------------
 # DISPLAY RESULTS
@@ -118,7 +164,7 @@ if st.session_state.df is not None:
     df = st.session_state.df
     total = st.session_state.total
 
-    st.subheader("📊 Nutrition Table")
+    st.subheader("📊 Final Nutrition Table")
     st.dataframe(df)
 
     # DOWNLOAD
@@ -140,7 +186,7 @@ if st.session_state.df is not None:
         ["Breakfast", "Lunch", "Dinner"]
     )
 
-    # SAVE
+    # SAVE (NOW ACCURATE)
     if st.button("💾 Save Meal"):
         for _, row in df.iterrows():
             insert_meal(
@@ -163,7 +209,6 @@ if st.session_state.df is not None:
     fig2, ax2 = plt.subplots()
     ax2.pie(total.values, labels=total.index, autopct='%1.1f%%')
     st.pyplot(fig2)
-
 
 # -------------------------------
 # HISTORY (CRUD)
