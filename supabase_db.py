@@ -2,9 +2,19 @@ from supabase import create_client
 import streamlit as st
 
 def get_client():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    supabase = create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"]
+    )
+
+    # 🔥 ATTACH USER SESSION TOKEN
+    session = st.session_state.get("session")
+
+    if session:
+        supabase.postgrest.auth(session.access_token)
+
+    return supabase
+    
 
 # -------------------------------
 # INSERT MEAL
