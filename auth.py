@@ -1,10 +1,13 @@
 from supabase import create_client
 import streamlit as st
 
+# -------------------------------
+# CLIENT
+# -------------------------------
 def get_client():
     return create_client(
         st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"]   # ⚠️ KEEP anon key
+        st.secrets["SUPABASE_KEY"]
     )
 
 # -------------------------------
@@ -18,7 +21,7 @@ def sign_up(email, password):
     })
 
 # -------------------------------
-# LOGIN + STORE SESSION
+# SIGN IN (FIXED)
 # -------------------------------
 def sign_in(email, password):
     supabase = get_client()
@@ -28,15 +31,14 @@ def sign_in(email, password):
         "password": password
     })
 
-    # ✅ store session
+    # ✅ STORE SESSION (ONLY HERE)
     st.session_state.session = res.session
     st.session_state.user = res.user
 
     return res
 
-
 # -------------------------------
-# RESTORE SESSION (IMPORTANT)
+# RESTORE SESSION
 # -------------------------------
 def restore_session():
     session = st.session_state.get("session")
@@ -55,5 +57,3 @@ def restore_session():
 
         except:
             st.session_state.user = None
-st.session_state.session = res.session
-st.session_state.user = res.user
